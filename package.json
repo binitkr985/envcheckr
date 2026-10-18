@@ -1,0 +1,32 @@
+{
+  "name": "envcheckr",
+  "version": "1.0.1",
+  "description": "Simple, zero-dependency environment variable validation for Node.js",
+  "type": "module",
+  "main": "./index.js",
+  "exports": {
+    ".": "./index.js"
+  },
+  "files": [
+    "index.js",
+    "README.md",
+    "LICENSE"
+  ],
+  "keywords": [
+    "environment-variables",
+    "env",
+    "validation",
+    "configuration",
+    "nodejs"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/binitkr985/envcheckr.git"
+  },
+  "homepage": "https://github.com/binitkr985/envcheckr#readme",
+  "bugs": {
+    "url": "https://github.com/binitkr985/envcheckr/issues"
+  },
+  "author": "Binit Kumar",
+  "license": "MIT"
+}
