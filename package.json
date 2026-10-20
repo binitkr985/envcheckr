@@ -1,6 +1,6 @@
 {
   "name": "envcheckr",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Simple, zero-dependency environment variable validation for Node.js",
   "type": "module",
   "main": "./index.js",
@@ -28,5 +28,8 @@
     "url": "https://github.com/binitkr985/envcheckr/issues"
   },
   "author": "Binit Kumar",
-  "license": "MIT"
+  "license": "MIT",
+  "scripts": {
+    "test": "node test.js"
+  }
 }

@@ -12,11 +12,11 @@ export function validateEnv(schema, env = process.env) {
     throw new TypeError("validateEnv() expects a schema object");
   }
 
-  if (!env || typeof env !== "object") {
+  if (!env || typeof env !== "object" || Array.isArray(env)) {
     throw new TypeError("validateEnv() expects an environment object");
   }
 
-  const values = Object.create(null);
+  const values = {};
   const errors = [];
 
   for (const [name, rule] of Object.entries(schema)) {
@@ -37,9 +37,19 @@ export function validateEnv(schema, env = process.env) {
       continue;
     }
 
-    const value = env[name];
+    const hasProperty = Object.prototype.hasOwnProperty.call(env, name);
+    const rawValue = hasProperty ? env[name] : undefined;
 
-    if (value === undefined || value.trim() === "") {
+    if (rawValue === undefined || rawValue === null) {
+      if (required) {
+        errors.push(`${name} is required`);
+      }
+      continue;
+    }
+
+    const value = typeof rawValue === "string" ? rawValue : String(rawValue);
+
+    if (value.trim() === "") {
       if (required) {
         errors.push(`${name} is required`);
       }

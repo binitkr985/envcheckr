@@ -1,22 +1,23 @@
 # envcheckr
 
+[![npm version](https://img.shields.io/npm/v/envcheckr.svg)](https://www.npmjs.com/package/envcheckr)
+[![license](https://img.shields.io/npm/l/envcheckr.svg)](https://github.com/binitkr985/envcheckr/blob/main/LICENSE)
+[![zero dependencies](https://img.shields.io/badge/dependencies-0-brightgreen.svg)](https://www.npmjs.com/package/envcheckr)
+
 A simple, zero-dependency environment variable validator for Node.js.
 
-`envcheckr` checks environment variables against a schema, converts
-supported values to their expected JavaScript types, and reports
-configuration errors together so you can catch problems before your
-application starts.
+`envcheckr` checks environment variables against a schema, converts supported values to their expected JavaScript types, and reports all configuration errors together so you can catch problems before your application starts.
 
 ## Features
 
-- Zero runtime dependencies
-- Supports `string`, `number`, and `boolean`
-- Optional variables by default
-- Mark individual variables as required
-- Converts validated numbers and booleans to JavaScript values
-- Reports multiple validation errors in one message
-- Validates `process.env` by default or a custom environment object
-- Uses ES modules
+- **Zero dependencies** & ultra-lightweight
+- **Type conversion**: Automatically parses `number` and `boolean` values into native JavaScript types
+- **Optional by default**: Variables are optional unless explicitly flagged with `required: true`
+- **Batch error reporting**: Collects all missing or invalid variables and reports them together in one comprehensive error
+- **Prototype safe**: Checks only own properties (`hasOwnProperty`), guarding against inherited prototype pollution
+- **Flexible environment source**: Validates `process.env` by default, or any custom environment/mock object (supporting strings, numbers, booleans, and nullish values)
+- **Standard object output**: Returns a clean, standard JavaScript object with only valid and present variables
+- **Native ES modules**: Clean, modern ESM exports
 
 ## Installation
 
@@ -44,12 +45,11 @@ By default, `validateEnv()` reads from `process.env`.
 
 ## Loading a `.env` file
 
-`envcheckr` validates environment values; it does not load `.env` files
-itself. Load your environment variables before calling `validateEnv()`.
+`envcheckr` validates environment values; it does not load `.env` files itself. Load your environment variables before calling `validateEnv()`.
 
-### Using Node.js
+### Using Node.js (Built-in)
 
-Node.js supports the `--env-file` option:
+Node.js (v20.6.0+) supports the `--env-file` option natively:
 
 ```bash
 node --env-file=.env index.js
@@ -66,7 +66,7 @@ DEBUG=true
 
 ### Using dotenv
 
-You can also use the `dotenv` package:
+You can also use the popular `dotenv` package:
 
 ```bash
 npm install dotenv
@@ -86,66 +86,49 @@ const env = validateEnv({
 
 ## Schema reference
 
-Each schema entry is an object with a `type` and an optional `required`
-property.
+Each schema entry is an object defining a `type` and an optional `required` boolean property:
 
 ```js
 {
   VARIABLE_NAME: {
     type: "string" | "number" | "boolean",
-    required: true | false
+    required: true | false // default: false
   }
 }
 ```
 
-### `type`
+### Supported Types
 
-The `type` property is required.
+| Type | Accepted Input | Returned JavaScript Value |
+| :--- | :--- | :--- |
+| `string` | Any non-empty string | `string` |
+| `number` | Finite numbers (integers, floats, scientific notation like `1e5`) | `number` |
+| `boolean` | `"true"` or `"false"` (case-insensitive) | `boolean` (`true` or `false`) |
 
----
-
-Type Accepted input Returned value
-
----
-
-`string` Any non-empty string String
-
-`number` A finite decimal Number
-number, including  
- negative and decimal  
- values
-
-`boolean` `true` or `false`, Boolean
-case-insensitive
-
----
-
-Numeric strings are converted to numbers. Boolean strings such as
-`"true"` and `"false"` are converted to booleans. Other boolean values
-produce a validation error.
+- **Strings**: Empty or whitespace-only strings are treated as unset/missing.
+- **Numbers**: Trimmed numeric strings are converted using `Number()`. Non-numeric or non-finite values produce a validation error.
+- **Booleans**: Normalized case-insensitively. Any string other than `"true"` or `"false"` produces a validation error.
 
 ### `required`
 
 `required` defaults to `false`.
 
-- `required: true`: the variable must be present and non-empty.
-- `required: false` or omitted: the variable may be absent or empty.
-  If absent, it is omitted from the returned object.
+- `required: true`: The variable must be present and non-empty. If missing, `null`, `undefined`, or empty string, an error is recorded.
+- `required: false` (or omitted): The variable is optional. If absent, `null`, or empty, it is safely omitted from the returned object.
 
-Examples:
+Example:
 
 ```js
 const env = validateEnv({
   PORT: { type: "number", required: true },
-  LOG_LEVEL: { type: "string" },
-  DEBUG: { type: "boolean", required: false },
+  LOG_LEVEL: { type: "string" },               // optional
+  DEBUG: { type: "boolean", required: false }, // optional
 });
 ```
 
 ## Using a custom environment object
 
-Pass a second argument to validate an object other than `process.env`.
-This is useful for tests and custom configuration.
+Pass an object as the second argument to validate something other than `process.env`. This is especially useful for unit testing and custom configurations:
 
 ```js
 import { validateEnv } from "envcheckr";
@@ -158,29 +141,32 @@ const env = validateEnv(
   {
     PORT: "3000",
     DEBUG: "true",
-  },
+  }
 );
 
-console.log(env.PORT); // 3000
-console.log(env.DEBUG); // true
+console.log(env.PORT);  // 3000 (number)
+console.log(env.DEBUG); // true (boolean)
 ```
 
-The second argument is an environment object, not a path to a `.env`
-file.
+In custom environment objects:
+- Values can be strings, numbers, or booleans (e.g. `{ PORT: 3000 }` will be safely processed).
+- Values of `null` or `undefined` are treated as absent.
+- Only own properties are validated—inherited prototype properties are safely ignored.
 
 ## Error handling
 
-If required variables are missing or values fail validation,
-`validateEnv()` throws an error listing the detected problems.
-
-For example, if `PORT` is required but missing:
+If validation fails, `validateEnv()` throws an `Error` summarizing all detected issues:
 
 ```text
 Error: Invalid environment:
 - PORT is required
+- DATABASE_URL is required
+- MAX_RETRIES must be a number
 ```
 
-You can catch the error if you need to handle startup failures yourself:
+### Catching Startup Errors
+
+You can catch errors to handle startup failures gracefully:
 
 ```js
 import { validateEnv } from "envcheckr";
@@ -188,31 +174,32 @@ import { validateEnv } from "envcheckr";
 try {
   const env = validateEnv({
     PORT: { type: "number", required: true },
-    DEBUG: { type: "boolean" },
+    DATABASE_URL: { type: "string", required: true },
   });
 
-  // Start your application using the validated values.
-  console.log("Environment validated", env);
+  // Start your application
+  startServer(env);
 } catch (error) {
-  console.error(error.message);
+  console.error("Configuration error:\n", error.message);
   process.exit(1);
 }
 ```
 
-Avoid printing secret values in logs. `envcheckr` reports variable names
-and validation problems, not the values of those variables.
+> **Security Note**: `envcheckr` only reports variable names and validation reasons in error messages, never the actual secret values.
+
+### Argument Validation
+
+`validateEnv()` also performs strict argument checks:
+- Throws `TypeError("validateEnv() expects a schema object")` if `schema` is not a valid non-array object.
+- Throws `TypeError("validateEnv() expects an environment object")` if `env` is not a valid non-array object.
 
 ## Important notes
 
-- Environment variables are strings by default. `envcheckr` converts
-  supported `number` and `boolean` values in the returned object.
-- Use the returned object (`env`) in your application when you need
-  converted values.
-- `envcheckr` does not load `.env` files, manage secrets, or change
-  `process.env`.
-- Missing optional variables are omitted from the returned object;
-  they are not assigned a default value.
-- Keep real `.env` files and secrets out of source control.
+- **Environment variables are strings by default**: `envcheckr` automatically converts validated `number` and `boolean` variables into native JavaScript types in the returned object.
+- **Use the returned object**: Always use the returned `env` object rather than `process.env` to take advantage of type conversion and validation guarantees.
+- **Does not mutate**: `envcheckr` never modifies `process.env` or your input object.
+- **Does not load files**: `envcheckr` is strictly a validator. Use Node's `--env-file` flag or `dotenv` to load `.env` files into `process.env`.
+- **Clean output**: Missing optional variables are omitted from the returned object rather than set to `undefined` or default values.
 
 ## License
 
