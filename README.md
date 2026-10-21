@@ -99,11 +99,11 @@ Each schema entry is an object defining a `type` and an optional `required` bool
 
 ### Supported Types
 
-| Type | Accepted Input | Returned JavaScript Value |
-| :--- | :--- | :--- |
-| `string` | Any non-empty string | `string` |
-| `number` | Finite numbers (integers, floats, scientific notation like `1e5`) | `number` |
-| `boolean` | `"true"` or `"false"` (case-insensitive) | `boolean` (`true` or `false`) |
+| Type      | Accepted Input                                                    | Returned JavaScript Value     |
+| :-------- | :---------------------------------------------------------------- | :---------------------------- |
+| `string`  | Any non-empty string                                              | `string`                      |
+| `number`  | Finite numbers (integers, floats, scientific notation like `1e5`) | `number`                      |
+| `boolean` | `"true"` or `"false"` (case-insensitive)                          | `boolean` (`true` or `false`) |
 
 - **Strings**: Empty or whitespace-only strings are treated as unset/missing.
 - **Numbers**: Trimmed numeric strings are converted using `Number()`. Non-numeric or non-finite values produce a validation error.
@@ -121,7 +121,7 @@ Example:
 ```js
 const env = validateEnv({
   PORT: { type: "number", required: true },
-  LOG_LEVEL: { type: "string" },               // optional
+  LOG_LEVEL: { type: "string" }, // optional
   DEBUG: { type: "boolean", required: false }, // optional
 });
 ```
@@ -141,17 +141,34 @@ const env = validateEnv(
   {
     PORT: "3000",
     DEBUG: "true",
-  }
+  },
 );
 
-console.log(env.PORT);  // 3000 (number)
+console.log(env.PORT); // 3000 (number)
 console.log(env.DEBUG); // true (boolean)
 ```
 
 In custom environment objects:
+
 - Values can be strings, numbers, or booleans (e.g. `{ PORT: 3000 }` will be safely processed).
 - Values of `null` or `undefined` are treated as absent.
 - Only own properties are validated—inherited prototype properties are safely ignored.
+
+## Options
+
+`validateEnv()` accepts an optional third argument for configuration:
+
+```js
+const env = validateEnv(schema, process.env, {
+  checkUpdates: true, // default: true
+});
+```
+
+| Option | Type | Default | Description |
+| :--- | :--- | :--- | :--- |
+| `checkUpdates` | `boolean` | `true` | Checks npm in the background and prints a non-blocking warning if a newer version is available. |
+
+You can disable update checks by passing `{ checkUpdates: false }`, setting `ENVCHECKR_NO_UPDATE_CHECK=1` in your environment, or running in test environments (`NODE_ENV=test`).
 
 ## Error handling
 
@@ -190,6 +207,7 @@ try {
 ### Argument Validation
 
 `validateEnv()` also performs strict argument checks:
+
 - Throws `TypeError("validateEnv() expects a schema object")` if `schema` is not a valid non-array object.
 - Throws `TypeError("validateEnv() expects an environment object")` if `env` is not a valid non-array object.
 
@@ -200,6 +218,28 @@ try {
 - **Does not mutate**: `envcheckr` never modifies `process.env` or your input object.
 - **Does not load files**: `envcheckr` is strictly a validator. Use Node's `--env-file` flag or `dotenv` to load `.env` files into `process.env`.
 - **Clean output**: Missing optional variables are omitted from the returned object rather than set to `undefined` or default values.
+
+## Support the Project
+
+If `envcheckr` is useful to you, consider supporting its development. Your support helps with maintenance, improvements, and future releases.
+
+<p>
+  <a href="https://buymeacoffee.com/binitkr9852" target="_blank">
+    <img
+      src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png"
+      alt="Buy Me a Coffee"
+      height="50"
+    />
+  </a>
+  &nbsp;&nbsp;
+  <a href="https://www.buymeachai.in/binitkr9852" target="_blank">
+    <img
+      src="https://binitkr.cd.am/image-2.png"
+      alt="Buy Me a Chai"
+      height="50"
+    />
+  </a>
+</p>
 
 ## License
 

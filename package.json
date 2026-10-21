@@ -1,6 +1,6 @@
 {
   "name": "envcheckr",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "Simple, zero-dependency environment variable validation for Node.js",
   "type": "module",
   "main": "./index.js",
@@ -21,7 +21,7 @@
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/binitkr985/envcheckr.git"
+    "url": "git+https://github.com/binitkr985/envcheckr.git"
   },
   "homepage": "https://github.com/binitkr985/envcheckr#readme",
   "bugs": {

@@ -277,21 +277,30 @@ runTest("Prototype Collision", "validating 'constructor' property with empty obj
 });
 
 runTest("Prototype Collision", "prototype pollution check: does setting __proto__ pollute Object?", () => {
+  const schema = JSON.parse('{"__proto__": {"type": "string"}}');
   const maliciousEnv = JSON.parse('{"__proto__": "polluted"}');
-  const res = validateEnv({ __proto__: { type: "string" } }, maliciousEnv);
+  const res = validateEnv(schema, maliciousEnv);
   if (Object.prototype.polluted !== undefined) {
     throw new Error("Prototype pollution detected on Object.prototype!");
   }
-  return "Safe: Object.prototype not polluted";
+  if (!Object.hasOwn(res, "__proto__")) {
+    throw new Error("Expected __proto__ to be preserved as an own property");
+  }
+  if (res.__proto__ !== "polluted") {
+    throw new Error(`Expected res.__proto__ to be 'polluted', got: ${res.__proto__}`);
+  }
+  return "Safe: Object.prototype not polluted and __proto__ preserved as own property";
 });
 
 runTest("Prototype Collision", "returned object hasOwnProperty call", () => {
   const res = validateEnv({ FOO: { type: "string" } }, { FOO: "bar" });
-  if (typeof res.hasOwnProperty === "function") {
-    return res.hasOwnProperty("FOO") ? "Standard prototype" : "Fail";
-  } else {
+  if (typeof res.hasOwnProperty !== "function") {
     throw new Error("res.hasOwnProperty is not a function (Object.create(null) breaks method access)");
   }
+  if (!res.hasOwnProperty("FOO")) {
+    throw new Error("Expected res.hasOwnProperty('FOO') to be true");
+  }
+  return "Standard prototype";
 });
 
 // ==========================================
@@ -718,6 +727,78 @@ runTest("Error Aggregation", "collects multiple distinct errors together", () =>
 });
 
 // ==========================================
+// 15. STQA Audit Regressions (D1, D2, D3)
+// ==========================================
+runTest("Audit Regressions", "D1: numeric regex completes without ReDoS backtracking on long input", () => {
+  const schema = { N: { type: "number", required: true } };
+  const value = "9".repeat(32000) + "x";
+  const start = performance.now();
+  const res = expectThrow(() => validateEnv(schema, { N: value }), Error, "N must be a number");
+  const duration = performance.now() - start;
+  if (!res.success) throw new Error(res.reason);
+  if (duration > 200) throw new Error(`Regex took too long (${duration.toFixed(2)}ms) - possible ReDoS`);
+  return `Completed in ${duration.toFixed(2)}ms`;
+});
+
+runTest("Audit Regressions", "D2: __proto__ preserved as own property for number and boolean", () => {
+  const schemaNum = JSON.parse('{"__proto__": {"type": "number", "required": true}}');
+  const resNum = validateEnv(schemaNum, JSON.parse('{"__proto__": "42"}'));
+  if (!Object.hasOwn(resNum, "__proto__") || resNum.__proto__ !== 42) {
+    throw new Error("Failed to preserve __proto__ as own number property");
+  }
+
+  const schemaBool = JSON.parse('{"__proto__": {"type": "boolean", "required": true}}');
+  const resBool = validateEnv(schemaBool, JSON.parse('{"__proto__": "true"}'));
+  if (!Object.hasOwn(resBool, "__proto__") || resBool.__proto__ !== true) {
+    throw new Error("Failed to preserve __proto__ as own boolean property");
+  }
+
+  return "Passed for number and boolean";
+});
+
+runTest("Audit Regressions", "D3: malformed schema type object aggregates errors without throwing TypeError", () => {
+  const schema = JSON.parse(`{
+    "BEFORE": {"type": "string", "required": true},
+    "BAD": {"type": {"toString": null}},
+    "AFTER": {"type": "boolean", "required": true}
+  }`);
+  const res = expectThrow(() => validateEnv(schema, {}), Error);
+  if (!res.success) throw new Error(res.reason);
+  const msg = res.caughtMessage;
+  if (!msg.includes("BEFORE is required")) throw new Error("Missing BEFORE error");
+  if (!msg.includes("BAD has an unsupported type: object")) throw new Error("Missing BAD error");
+  if (!msg.includes("AFTER is required")) throw new Error("Missing AFTER error");
+  return "All errors successfully aggregated";
+});
+
+// ==========================================
+// 16. Options Argument & Update Check
+// ==========================================
+runTest("Options Validation", "non-object options throws TypeError", () => {
+  const res = expectThrow(() => validateEnv({}, {}, "not-an-object"), TypeError, "expects an options object");
+  if (!res.success) throw new Error(res.reason);
+  return "OK";
+});
+
+runTest("Options Validation", "array options throws TypeError", () => {
+  const res = expectThrow(() => validateEnv({}, {}, []), TypeError, "expects an options object");
+  if (!res.success) throw new Error(res.reason);
+  return "OK";
+});
+
+runTest("Options Validation", "checkUpdates: false disables update check", () => {
+  const res = validateEnv({ PORT: { type: "number" } }, { PORT: "3000" }, { checkUpdates: false });
+  if (res.PORT !== 3000) throw new Error("Validation failed");
+  return "OK";
+});
+
+runTest("Options Validation", "checkUpdates: true executes safely", () => {
+  const res = validateEnv({ PORT: { type: "number" } }, { PORT: "3000" }, { checkUpdates: true });
+  if (res.PORT !== 3000) throw new Error("Validation failed");
+  return "OK";
+});
+
+// ==========================================
 // Print Summary & Exit Code
 // ==========================================
 const passes = testResults.filter((t) => t.status === "PASS");
@@ -738,6 +819,6 @@ if (fails.length > 0) {
   });
   process.exit(1);
 } else {
-  console.log("All 91 tests passed successfully! 🎉\n");
+  console.log(`All ${passes.length} tests passed successfully! 🎉\n`);
   process.exit(0);
 }
